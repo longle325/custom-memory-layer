@@ -191,10 +191,10 @@ class Memory:
                 embedding = self.embedding_client.get_embedding(fact)
                 embeddings.append(embedding)
 
-            # Search for similar memories with optimized limit
+            # Search for similar memories with optimized limit and user filtering
             search_results = []
             for embedding in embeddings:
-                results = self.vector_db_client.search(embedding, limit=10)
+                results = self.vector_db_client.search(embedding, limit=10, user_id=user_id)
                 search_results.extend(results)
 
             # Handle empty memory scenario gracefully
@@ -224,6 +224,7 @@ class Memory:
             # Batch process actions for better performance
             batch_texts = []
             batch_embeddings = []
+            batch_user_ids = []
             batch_ids_to_delete = []
 
             for action in actions:
@@ -233,6 +234,7 @@ class Memory:
                 if event == "ADD":
                     batch_texts.append(text_content)
                     batch_embeddings.append(self.embedding_client.get_embedding(text_content))
+                    batch_user_ids.append(user_id)
                     actions_performed["ADD"] += 1
                     
                 elif event == "UPDATE":
@@ -241,6 +243,7 @@ class Memory:
                         batch_ids_to_delete.append(memory_id)
                         batch_texts.append(text_content)
                         batch_embeddings.append(self.embedding_client.get_embedding(text_content))
+                        batch_user_ids.append(user_id)
                         actions_performed["UPDATE"] += 1
                         actions_performed["CONFLICTS_RESOLVED"] += 1
                         
@@ -255,10 +258,8 @@ class Memory:
 
             # Execute batch operations
             if batch_texts:
-                # Add user context to texts if provided
-                if user_id:
-                    batch_texts = [f"[User: {user_id}] {text}" for text in batch_texts]
-                self.vector_db_client.insert(batch_texts, batch_embeddings)
+                # Pass user_id directly to vector database instead of prepending to text
+                self.vector_db_client.insert(batch_texts, batch_embeddings, batch_user_ids)
 
             if batch_ids_to_delete:
                 for memory_id in batch_ids_to_delete:
@@ -321,11 +322,12 @@ class Memory:
             with ThreadPoolExecutor(max_workers=2) as executor:
                 futures = {}
                 
-                # Vector search
+                # Vector search with user isolation
                 futures["vector"] = executor.submit(
                     self.vector_db_client.search, 
                     query_embedding, 
-                    limit
+                    limit,
+                    user_id
                 )
                 
                 # Graph search if enabled
@@ -472,9 +474,9 @@ class Memory:
                 "status": "success"
             }
 
-            # Delete from vector memory
+            # Delete from vector memory using proper user_id field
             try:
-                vector_result = self.vector_db_client.delete_by_filter(f"[User: {user_id}]")
+                vector_result = self.vector_db_client.delete_by_user_id(user_id)
                 results["vector_deleted"] = vector_result
             except Exception as e:
                 results["vector_error"] = str(e)

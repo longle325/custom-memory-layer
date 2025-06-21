@@ -7,10 +7,10 @@ import hashlib
 import time
 import functools
 from typing import Dict, Any, Optional
-from prompts import SYSTEM_PROMPT_TEMPLATE
 sys.path.insert(0, "memory_core")
 
 from memory_core import Memory, LLMClient
+from memory_core.prompts import SYSTEM_PROMPT_TEMPLATE
 from config.settings import get_settings
 
 dotenv_path ='.env'
