@@ -11,4 +11,3 @@ agent/
 .chainlit/
 .files/
 __pycache__/
-test_agent.py
