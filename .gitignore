@@ -1,0 +1,14 @@
+.env
+memory_core/__pycache__/
+interface/
+examples/
+env_example
+test_agent.py
+config.py
+config/
+core/
+agent/
+.chainlit/
+.files/
+__pycache__/
+test_agent.py
